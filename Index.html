@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Racing Game with Traffic</title>
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #222;
+            touch-action: none;
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+            background: #222;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            z-index: 10;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 20px;
+            background: transparent;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #leftBtn::after {
+            content: '⬅';
+        }
+
+        #rightBtn::after {
+            content: '➡';
+        }
+
+        /* Gear Stick */
+        .gear-stick {
+            position: absolute;
+            width: 40px;
+            height: 150px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid #fff;
+            border-radius: 20px;
+            z-index: 20;
+        }
+
+        #gearLeft {
+            left: 20px;
+            bottom: 100px;
+        }
+
+        #gearRight {
+            right: 20px;
+            bottom: 100px;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Buttons -->
+    <div id="controls">
+        <button class="btn" id="leftBtn"></button>
+        <button class="btn" id="rightBtn"></button>
+    </div>
+
+    <!-- Gear sticks -->
+    <div class="gear-stick" id="gearLeft"></div>
+    <div class="gear-stick" id="gearRight"></div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const ctx = canvas.getContext('2d');
+        const roadWidthRatio = 0.5;
+        const roadWidth = canvas.width * roadWidthRatio;
+        const roadX = (canvas.width - roadWidth) / 2;
+        const laneWidth = roadWidth / 3;
+
+        // Car
+        let car = {
+            width: 30,
+            height: 60,
+            x: canvas.width / 2 - 15,
+            y: canvas.height - 180,
+            speedX: 0,
+            speed: 5,
+            image: new Image()
+        };
+        car.image.src = 'car.png';
+
+        // Enemy traffic
+        const enemyImages = ['redcar.png', 'bus.png', 'truck.png', 'yellowcar.png', 'truck2.png'];
+        let traffic = [];
+        for (let i = 0; i < 5; i++) {
+            traffic.push({
+                x: roadX + laneWidth * Math.floor(Math.random() * 3) + 5,
+                y: -200 * i,
+                width: 30,
+                height: 60,
+                speed: 10 + Math.random() * 5,
+                image: (() => {
+                    let img = new Image();
+                    img.src = enemyImages[Math.floor(Math.random() * enemyImages.length)];
+                    return img;
+                })()
+            });
+        }
+
+        function drawTraffic() {
+            traffic.forEach(enemy => {
+                enemy.y += car.speed - enemy.speed;
+                if (enemy.y > canvas.height) {
+                    enemy.y = -200;
+                    enemy.x = roadX + laneWidth * Math.floor(Math.random() * 3) + 5;
+                    enemy.image.src = enemyImages[Math.floor(Math.random() * enemyImages.length)];
+                }
+                ctx.drawImage(enemy.image, enemy.x, enemy.y, enemy.width, enemy.height);
+            });
+        }
+
+        // Road objects
+        let poles = [], lines = [], sideObjects = [];
+        const objectTypes = ['tree', 'house'];
+
+        for (let i = 0; i < 20; i++) poles.push({ y: i * -100 });
+        for (let i = 0; i < 20; i++) lines.push({ y: i * -80 });
+
+        function createSideObjects() {
+            for (let i = 0; i < 10; i++) {
+                sideObjects.push({
+                    x: Math.random() > 0.5 ? roadX - 60 : roadX + roadWidth + 20,
+                    y: i * -200,
+                    type: objectTypes[Math.floor(Math.random() * objectTypes.length)]
+                });
+            }
+        }
+
+        function drawSideObjects() {
+            sideObjects.forEach(obj => {
+                obj.y += car.speed;
+                if (obj.y > canvas.height) {
+                    obj.y = -200;
+                    obj.type = objectTypes[Math.floor(Math.random() * objectTypes.length)];
+                }
+                if (obj.type === 'tree') {
+                    ctx.fillStyle = 'brown';
+                    ctx.fillRect(obj.x + 20, obj.y + 20, 10, 20);
+                    ctx.beginPath();
+                    ctx.arc(obj.x + 25, obj.y + 15, 15, 0, Math.PI * 2);
+                    ctx.fillStyle = 'darkgreen';
+                    ctx.fill();
+                } else {
+                    ctx.fillStyle = 'saddlebrown';
+                    ctx.fillRect(obj.x, obj.y, 40, 30);
+                    ctx.beginPath();
+                    ctx.moveTo(obj.x, obj.y);
+                    ctx.lineTo(obj.x + 20, obj.y - 15);
+                    ctx.lineTo(obj.x + 40, obj.y);
+                    ctx.closePath();
+                    ctx.fillStyle = 'maroon';
+                    ctx.fill();
+                }
+            });
+        }
+
+        function drawPoles() {
+            poles.forEach(pole => {
+                pole.y += car.speed;
+                if (pole.y > canvas.height) {
+                    pole.y = -100;
+                }
+                ctx.fillStyle = '#ccc';
+                ctx.fillRect(roadX - 10, pole.y, 5, 20);
+                ctx.fillRect(roadX + roadWidth + 5, pole.y, 5, 20);
+            });
+        }
+
+        function drawRoad() {
+            ctx.fillStyle = 'green';
+            ctx.fillRect(0, 0, roadX, canvas.height);
+            ctx.fillRect(roadX + roadWidth, 0, canvas.width - (roadX + roadWidth), canvas.height);
+            ctx.fillStyle = '#555';
+            ctx.fillRect(roadX, 0, roadWidth, canvas.height);
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(roadX, 0, 5, canvas.height);
+            ctx.fillRect(roadX + roadWidth - 5, 0, 5, canvas.height);
+        }
+
+        function drawCenterLines() {
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([]);
+            lines.forEach(line => {
+                line.y += car.speed;
+                if (line.y > canvas.height) {
+                    line.y = -80;
+                }
+                ctx.beginPath();
+                ctx.moveTo(roadX + laneWidth, line.y);
+                ctx.lineTo(roadX + laneWidth, line.y + 40);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(roadX + laneWidth * 2, line.y);
+                ctx.lineTo(roadX + laneWidth * 2, line.y + 40);
+                ctx.stroke();
+            });
+        }
+
+        function drawCar() {
+            ctx.save();
+            ctx.drawImage(car.image, car.x, car.y, car.width, car.height);
+            ctx.restore();
+        }
+
+        function update() {
+            car.x += car.speedX;
+            const maxX = roadX + roadWidth - car.width - 5;
+            if (car.x < roadX + 5) car.x = roadX + 5;
+            if (car.x > maxX) car.x = maxX;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawRoad();
+            drawCenterLines();
+            drawSideObjects();
+            drawPoles();
+            drawTraffic();
+            drawCar();
+            requestAnimationFrame(update);
+        }
+
+        // Left-Right controls
+        document.getElementById('leftBtn').addEventListener('touchstart', () => car.speedX = -5);
+        document.getElementById('rightBtn').addEventListener('touchstart', () => car.speedX = 5);
+        document.getElementById('leftBtn').addEventListener('touchend', () => car.speedX = 0);
+        document.getElementById('rightBtn').addEventListener('touchend', () => car.speedX = 0);
+
+        // Gear Stick Swipe Logic
+        let startY = 0;
+        const normalSpeed = 5;
+        const maxSpeed = 80;
+
+        function handleGear(gearStick) {
+            gearStick.addEventListener('touchstart', e => {
+                startY = e.touches[0].clientY;
+            });
+            gearStick.addEventListener('touchmove', e => {
+                const deltaY = (startY - e.touches[0].clientY) / 2;
+                car.speed = Math.min(maxSpeed, Math.max(normalSpeed, deltaY));
+            });
+            gearStick.addEventListener('touchend', e => {
+                car.speed = normalSpeed;
+            });
+        }
+
+        handleGear(document.getElementById('gearLeft'));
+        handleGear(document.getElementById('gearRight'));
+
+        // Init
+        createSideObjects();
+        update();
+    </script>
+</body>
+
+</html>
